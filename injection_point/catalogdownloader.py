@@ -9,7 +9,7 @@ from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
 
 # from injection_point import SHOPPING_LIST
-from injection_point.constants import SHOPPING_LIST, SHOPRITE
+from injection_point.constants import SHOPPING_LIST, SHOPRITE, STOPNSHOP
 import time
 
 from selenium import webdriver
@@ -27,9 +27,24 @@ def remove_html_tags(text):
     return re.sub(clean, '', text)
 
 
+# Expensive operation
+def unique_list(l):
+    ulist = []
+    [ulist.append(x) for x in l if x not in ulist]
+    return ulist
 
-INVALID_TAGS = ["aria-live", "list", "cart", "Add ", "Remove", "Increase", "Decrease", "Your cart has been updated", \
-                "Decrease ", "to  list", "Item "]
+IGNORE = ["details"]
+# Expensive operation
+def unique_list_ignore(l):
+    ulist = []
+    [ulist.append(x) for x in l if x not in ulist and x not in IGNORE]
+    return ulist
+
+INVALID_TAGS_SHOPRITE = ["aria-live", "list", "cart", "Add ", "Remove", "Increase", "Decrease",
+                         "Your cart has been updated", \
+                         "Decrease ", "to  list", "Item "]
+
+INVALID_TAGS_SHOPNSHOP = ["Email"]
 
 
 class CatalogDownloader:
@@ -54,7 +69,7 @@ class CatalogDownloader:
         # results = soup.find_all('span', class_="show-for-sr")
         results = []
         for span in soup.find_all("span", attrs={'class', 'show-for-sr'}):
-            if not any(subString in str(span) for subString in INVALID_TAGS):
+            if not any(subString in str(span) for subString in INVALID_TAGS_SHOPRITE):
                 results.append(span)
 
         # results = soup.body.find('a', attrs={'class', 'product__detailsLink'})
@@ -84,17 +99,16 @@ class CatalogDownloader:
 
         post_elems = browser.find_elements_by_class_name("product__detailsLink")
 
-
         results = {}
         results1 = []
 
         for post in post_elems:
             # print(str(post.text))
-            if not any(subString in str(post.text) for subString in INVALID_TAGS):
+            if not any(subString in str(post.text) for subString in INVALID_TAGS_SHOPRITE):
                 print(str(post.text))
                 if not post.text:
                     continue
-                #results[str(post.text)] = counter
+                # results[str(post.text)] = counter
                 results1.append(str(post.text))
 
                 # results.append(str(post.text))
@@ -121,7 +135,55 @@ class CatalogDownloader:
         json_dump_of_results = json.dumps(results)
         with open('listfile.txt', 'w') as fileHandler:
             # fileHandler.write('%s\n' % item)
-            fileHandler.write(simplejson.dumps(simplejson.loads(json_dump_of_results), indent = 4, sort_keys=False))
+            fileHandler.write(simplejson.dumps(simplejson.loads(json_dump_of_results), indent=4, sort_keys=False))
 
         browser.quit()
         # print(results)
+
+    def driveStopNShop(self):
+        # tree = html.fromstring(page.content)
+        # object_names = tree.xpath('//a [@class="product__detailsLink"]/text()')
+        # print(object_names)
+        # span_names = tree.xpath('//span[@class="show-for-sr"]/text()')
+        # print(span_names)
+        print(STOPNSHOP)
+        req = urllib.request.Request(
+            STOPNSHOP,
+            headers={'User-Agent': 'Mozilla/5.0'})
+        webpage = urllib.request.urlopen(req).read()  # urlopen(req).read()
+        # jsonResponse = json.loads(urllib.request.urlopen(req).json())
+        # print(jsonResponse)
+        # print(webpage)
+        soup = BeautifulSoup(webpage, 'html.parser')
+        # print(soup.prettify())
+        # results = soup.find_all('span', class_="show-for-sr") category-allcategories
+        results = []
+        print("hello")
+        # div_tag = soup.find("div", {"class", "category-allcategories"})
+
+        # print(div_tag)
+        for tag in soup.find_all("li"):
+            #print(''.join(unique_list(tag.text.split())), "\n\n\n-------------------------------")
+            temp = " ".join(tag.text.split())
+            #print(temp)
+            print(" ".join(unique_list_ignore(temp.split())))
+            #print(" ".join(sorted(set(tag.text), key=tag.text.index)))
+
+        # for span in soup.find_all("span", attrs={'class', 'wishabi-offscreen'}):
+        #     if not any(subString in str(span) for subString in INVALID_TAGS_SHOPNSHOP):
+        #    results.append(span)
+        #        if "$" in str(span):
+        #            print(remove_html_tags(str(span)))
+        #        else:
+        #            print("Couldn't find : ", str(span))
+        # for li in div_tag.find_all("li"):
+        # print(remove_html_tags(str(li)))
+        # if "$" in str(li):
+        #    print(li)
+        # if not any(subString in str(li) for subString in INVALID_TAGS):
+        #    results.append(li)
+
+        # results = soup.body.find('a', attrs={'class', 'product__detailsLink'})
+        for result in results:  # results.span.find_all('span', recursive=False):
+            print(remove_html_tags(str(result)))
+        print("hello2")
